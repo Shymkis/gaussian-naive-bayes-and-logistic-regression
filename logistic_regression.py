@@ -27,7 +27,7 @@ def predict(gnb_model, test_df):
             probs.append(prob)
         label_values[label] = math.log(label_probs[label]) + np.sum(probs, axis=0)
     return pd.DataFrame(label_values).idxmax(axis=1)
-
+ 
 def prediction_accuracy(labels, predictions):
     correct = labels.eq(predictions).sum()
     return correct / len(labels.index) * 100
