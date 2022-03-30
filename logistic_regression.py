@@ -9,29 +9,6 @@ import warnings
 def sigmoid(x):
     return 1/(1 + np.exp(-x))
 
-def cost(w, X, Y, lmbda):
-    m = len(Y)
-    Y_log = np.multiply(Y, np.log(sigmoid(np.dot(X, w))))
-    one_minus = np.multiply(1 - Y, np.log(1 - sigmoid(np.dot(X, w))))
-    return -np.sum(Y_log + one_minus)/m + lmbda/(2*m)*np.sum(w[1:]**2)
-
-def grad(w, X, Y, lmbda):
-    m = len(Y)
-    diff = sigmoid(np.dot(X, w)) - Y
-    result = np.dot(diff, X)/m + w*lmbda/m
-    result[0] = result[0] - w[0]*lmbda/m
-    return result
-
-def my_func(x0, X, Y, epochs, eta, lmbda, tol):
-    w = x0
-    for _ in range(epochs):
-        diff = Y - sigmoid(np.dot(X, w))
-        step = -eta*lmbda*w + eta*np.dot(diff, X)
-        w += step
-        if (abs(step) < tol).all():
-            break
-    return w
-
 def train_model(train_df, epochs=200, eta=.2, lmbda=0, tol=.00001):
     warnings.filterwarnings("ignore")
     X = train_df.drop("label", axis=1)
