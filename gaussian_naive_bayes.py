@@ -29,12 +29,10 @@ def predict(gnb_model, test_df):
     return pd.DataFrame(label_values).idxmax(axis=1)
 
 def prediction_accuracy(labels, predictions):
-    correct = labels.eq(predictions).sum()
-    return correct / len(labels.index) * 100
+    return np.mean(labels.to_numpy() == predictions) * 100
 
 def main():
-    # https://www.kaggle.com/c/digit-recognizer
-    df = pd.read_csv('digits.csv')
+    df = pd.read_csv("digits.csv")
 
     # Cross-validation
     k = 5
@@ -53,6 +51,7 @@ def main():
         # for i in range(10):
         #     pyplot.subplot(2, 5, 1 + i)
         #     pyplot.imshow(gnb_model[1].iloc[i].to_numpy().reshape((28, 28)), cmap=pyplot.get_cmap('gray'))
+        #     pyplot.axis("off")
         # pyplot.show()
 
         # Make predictions on training set and testing set independently

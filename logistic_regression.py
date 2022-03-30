@@ -1,40 +1,63 @@
-import math
 from matplotlib import pyplot
 import numpy as np
 import pandas as pd
-from scipy.stats import norm
+import scipy.optimize as opt
 from sklearn.model_selection import KFold
 import time
+import warnings
 
-def train_model(train_df):
-    label_probs = train_df.label.value_counts()/len(train_df.index)
-    feature_label_means = train_df.groupby("label").mean()
-    feature_label_stdvs = train_df.groupby("label").std()
-    return label_probs, feature_label_means, feature_label_stdvs
+def sigmoid(x):
+    return 1/(1 + np.exp(-x))
 
-def predict(gnb_model, test_df):
-    label_probs, feature_label_means, feature_label_stdvs = gnb_model
-    label_values = {}
-    for label in label_probs.index:
-        probs = []
-        for feature in test_df.columns:
-            x = test_df[feature]
-            mean = feature_label_means.at[label, feature]
-            stdv = feature_label_stdvs.at[label, feature]
-            if stdv == 0:
-                continue
-            prob = norm.logpdf(x, mean, stdv)
-            probs.append(prob)
-        label_values[label] = math.log(label_probs[label]) + np.sum(probs, axis=0)
-    return pd.DataFrame(label_values).idxmax(axis=1)
- 
+def cost(w, X, Y, lmbda):
+    m = len(Y)
+    Y_log = np.multiply(Y, np.log(sigmoid(np.dot(X, w))))
+    one_minus = np.multiply(1 - Y, np.log(1 - sigmoid(np.dot(X, w))))
+    return -np.sum(Y_log + one_minus)/m + lmbda/(2*m)*np.sum(w[1:]**2)
+
+def grad(w, X, Y, lmbda):
+    m = len(Y)
+    diff = sigmoid(np.dot(X, w)) - Y
+    result = np.dot(diff, X)/m + w*lmbda/m
+    result[0] = result[0] - w[0]*lmbda/m
+    return result
+
+def my_func(x0, X, Y, epochs, eta, lmbda, tol):
+    w = x0
+    for _ in range(epochs):
+        diff = Y - sigmoid(np.dot(X, w))
+        step = -eta*lmbda*w + eta*np.dot(diff, X)
+        w += step
+        if (abs(step) < tol).all():
+            break
+    return w
+
+def train_model(train_df, epochs=200, eta=.2, lmbda=0, tol=.00001):
+    warnings.filterwarnings("ignore")
+    X = train_df.drop("label", axis=1)
+    X = np.hstack((np.ones((len(X.index), 1)), X)) # Add intercept and convert to np matrix for efficiency
+    Y = train_df["label"]
+    n_labels = Y.nunique()
+    w = np.zeros((n_labels, X.shape[1]))
+    # One vs. all
+    for i in range(n_labels):
+        for _ in range(epochs):
+            diff = (Y == i) - sigmoid(np.dot(X, w[i]))
+            step = -eta*lmbda*w[i] + eta*np.dot(diff, X)
+            w[i] += step
+            if (abs(step) < tol).all():
+                break
+    return w
+
+def predict(lr_model, test_df):
+    X = np.hstack((np.ones((len(test_df.index), 1)), test_df)) # Add intercept and convert to np matrix for efficiency
+    return np.argmax(X @ lr_model.T, axis=1)
+
 def prediction_accuracy(labels, predictions):
-    correct = labels.eq(predictions).sum()
-    return correct / len(labels.index) * 100
+    return np.mean(labels == predictions) * 100
 
 def main():
-    # https://www.kaggle.com/c/digit-recognizer
-    df = pd.read_csv('digits.csv')
+    df = pd.read_csv("digits.csv")
 
     # Cross-validation
     k = 5
@@ -47,17 +70,18 @@ def main():
         test_df = df.iloc[test_index].reset_index(drop=True)
 
         # Training
-        gnb_model = train_model(train_df)
+        lr_model = train_model(train_df)
 
         # Display model
         # for i in range(10):
         #     pyplot.subplot(2, 5, 1 + i)
-        #     pyplot.imshow(gnb_model[1].iloc[i].to_numpy().reshape((28, 28)), cmap=pyplot.get_cmap('gray'))
+        #     pyplot.imshow(lr_model[i][1:].reshape((28, 28)), cmap=pyplot.get_cmap('gray'))
+        #     pyplot.axis("off")
         # pyplot.show()
 
         # Make predictions on training set and testing set independently
-        train_predictions = predict(gnb_model, train_df.drop("label", axis=1))
-        test_predictions = predict(gnb_model, test_df.drop("label", axis=1))
+        train_predictions = predict(lr_model, train_df.drop("label", axis=1))
+        test_predictions = predict(lr_model, test_df.drop("label", axis=1))
 
         end = time.time()
 
