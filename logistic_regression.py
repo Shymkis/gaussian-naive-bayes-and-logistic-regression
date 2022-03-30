@@ -1,7 +1,6 @@
 from matplotlib import pyplot
 import numpy as np
 import pandas as pd
-import scipy.optimize as opt
 from sklearn.model_selection import KFold
 import time
 import warnings
